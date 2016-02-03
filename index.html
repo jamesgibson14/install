@@ -30,13 +30,8 @@
               
             </div>
             
-            <div class="content"><div class='highlight'><pre>(<span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">global, undefined</span>) </span>{
-  <span class="hljs-keyword">if</span> (global.makeInstaller) {
-    <span class="hljs-keyword">return</span>;
-  }
-
-  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">makeInstaller</span>(<span class="hljs-params">options</span>) </span>{
-    <span class="hljs-keyword">var</span> root = <span class="hljs-keyword">new</span> File({});</pre></div></div>
+            <div class="content"><div class='highlight'><pre>makeInstaller = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">options</span>) </span>{
+  options = options || {};</pre></div></div>
             
         </li>
         
@@ -47,13 +42,12 @@
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-2">&#182;</a>
               </div>
-              <p>Set up a simple queue for tracking required modules with unmet
-dependencies. See also <code>queueAppend</code> and <code>queueFlush</code>.</p>
+              <p>These file extensions will be appended to required module identifiers
+if they do not exactly match an installed module.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">var</span> q = root.q = {};
-    q.h = q.t = {}; <span class="hljs-comment">// Queue head, queue tail.</span></pre></div></div>
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">var</span> extensions = options.extensions || [<span class="hljs-string">".js"</span>, <span class="hljs-string">".json"</span>];</pre></div></div>
             
         </li>
         
@@ -64,33 +58,141 @@ dependencies. See also <code>queueAppend</code> and <code>queueFlush</code>.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-3">&#182;</a>
               </div>
-              <p>Configurable function for deferring queue flushes.</p>
+              <p>This constructor will be used to instantiate the module objects
+passed to module factory functions (i.e. the third argument after
+require and exports).</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    q.d = options &amp;&amp; options.defer || <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">fn</span>) </span>{
-      setTimeout(fn, <span class="hljs-number">0</span>);
-    };
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">var</span> Module = options.Module || <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">Module</span>(<span class="hljs-params">id, parent</span>) </span>{
+    <span class="hljs-keyword">this</span>.id = id;
+    <span class="hljs-keyword">this</span>.parent = parent;
+  };</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-4">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-4">&#182;</a>
+              </div>
+              <p>If defined, the options.onInstall function will be called any time
+new modules are installed.</p>
 
-    <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">install</span>(<span class="hljs-params">tree</span>) </span>{
-      <span class="hljs-keyword">if</span> (isObject(tree)) {
-        fileMergeContents(root, tree);
-        queueFlush(root.q);
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">var</span> onInstall = options.onInstall;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-5">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-5">&#182;</a>
+              </div>
+              <p>If defined, the options.fallback function will be called when no
+installed module is found for a required module identifier. Often
+options.fallback will be implemented in terms of the native Node
+require function, which has the ability to load binary modules.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">var</span> fallback = options.fallback;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-6">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-6">&#182;</a>
+              </div>
+              <p>Whenever a new require function is created in the makeRequire
+function below, any methods contained by options.requireMethods will
+be bound and attached as methods to that function object. This option
+is intended to support user-defined require.* extensions like
+require.ensure and require.promise.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">var</span> requireMethods = options.requireMethods;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-7">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-7">&#182;</a>
+              </div>
+              <p>Sentinel returned by fileEvaluate when module resolution fails.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">var</span> MISSING = {};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-8">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-8">&#182;</a>
+              </div>
+              <p>Nothing special about MISSING.hasOwnProperty, except that it’s fewer
+characters than Object.prototype.hasOwnProperty after minification.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">var</span> hasOwn = MISSING.hasOwnProperty;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-9">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-9">&#182;</a>
+              </div>
+              <p>The file object representing the root directory of the installed
+module tree.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-keyword">var</span> root = <span class="hljs-keyword">new</span> File({});</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-10">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-10">&#182;</a>
+              </div>
+              <p>Merges the given tree of directories and module factory functions
+into the tree of installed modules and returns a require function
+that behaves as if called from a module in the root directory.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">install</span>(<span class="hljs-params">tree</span>) </span>{
+    <span class="hljs-keyword">if</span> (isObject(tree)) {
+      fileMergeContents(root, tree);
+      <span class="hljs-keyword">if</span> (isFunction(onInstall)) {
+        onInstall(root.r);
       }
-      <span class="hljs-keyword">return</span> root.r;
-    };
+    }
+    <span class="hljs-keyword">return</span> root.r;
   }
-
-  global.makeInstaller = makeInstaller;
-
-  <span class="hljs-keyword">if</span> (<span class="hljs-keyword">typeof</span> exports === <span class="hljs-string">"object"</span>) {
-    exports.makeInstaller = makeInstaller;
-  }
-
-  <span class="hljs-keyword">var</span> extensions = [<span class="hljs-string">""</span>, <span class="hljs-string">".js"</span>, <span class="hljs-string">".json"</span>];
-  <span class="hljs-keyword">var</span> MISSING = {};
-  <span class="hljs-keyword">var</span> hasOwn = MISSING.hasOwnProperty;
-  <span class="hljs-keyword">var</span> Ap = <span class="hljs-built_in">Array</span>.prototype;
 
   <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getOwn</span>(<span class="hljs-params">obj, key</span>) </span>{
     <span class="hljs-keyword">return</span> hasOwn.call(obj, key) &amp;&amp; obj[key];
@@ -108,148 +210,21 @@ dependencies. See also <code>queueAppend</code> and <code>queueFlush</code>.</p>
     <span class="hljs-keyword">return</span> <span class="hljs-keyword">typeof</span> value === <span class="hljs-string">"string"</span>;
   }
 
-  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">queueAppend</span>(<span class="hljs-params">q, file</span>) </span>{</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-4">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-4">&#182;</a>
-              </div>
-              <p>Property names shortened to shave bytes: <code>.t</code> means <code>.tail</code>, <code>.h</code>
-means <code>.head</code>, <code>.n</code> means <code>.next</code>, and <code>.f</code> means <code>.file</code>.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    q.t = q.t.n = { f: file };
-    <span class="hljs-keyword">if</span> (q.h.n === q.t) {</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-5">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-5">&#182;</a>
-              </div>
-              <p>If the queue contains only one File (the one we just added), go
-ahead and schedule a flush.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>      queueFlush(q);
-    }
-  }
-
-  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">queueFlush</span>(<span class="hljs-params">q</span>) </span>{</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-6">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-6">&#182;</a>
-              </div>
-              <p>The <code>q.p</code> property is set to indicate a flush is pending.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    q.p || (q.p = <span class="hljs-literal">true</span>, q.d(<span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"></span>) </span>{
-      q.p = <span class="hljs-literal">undefined</span>;
-      <span class="hljs-keyword">var</span> next = q.h.n;
-      <span class="hljs-keyword">if</span> (next &amp;&amp; fileReady(next.f)) {
-        queueFlush(q); <span class="hljs-comment">// Schedule the next flush.</span>
-        q.h = next;
-        fileEvaluate(next.f);
-      }
-    }));
-  }</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-7">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-7">&#182;</a>
-              </div>
-              <p>These <code>unbound{Require,Ensure}</code> functions need to be bound to File
-objects before they can be used. See <code>makeRequire</code>.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>
-  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">unboundRequire</span>(<span class="hljs-params">id</span>) </span>{
-    <span class="hljs-keyword">var</span> result = fileEvaluate(fileResolve(<span class="hljs-keyword">this</span>, id));
-    <span class="hljs-keyword">if</span> (result === MISSING) {
-      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">"Cannot find module '"</span> + id + <span class="hljs-string">"'"</span>);
-    }
-    <span class="hljs-keyword">return</span> result;
-  }
-
-  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">unboundEnsure</span>(<span class="hljs-params"></span>) </span>{</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-8">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-8">&#182;</a>
-              </div>
-              <p>Flatten arguments into an array containing relative module
-identifier strings and an optional callback function, then coerce
-that array into a callback function with a <code>.d</code> property.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">var</span> flatArgs = Ap.concat.apply(Ap, <span class="hljs-built_in">arguments</span>);
-    <span class="hljs-keyword">var</span> callback = ensureObjectOrFunction(flatArgs);</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-9">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-9">&#182;</a>
-              </div>
-              <p>Note that <code>queueAppend</code> schedules a flush if there are no other
-callbacks waiting in the queue.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    queueAppend(<span class="hljs-keyword">this</span>.q, <span class="hljs-keyword">new</span> File(callback, <span class="hljs-keyword">this</span>));
-  }
-
   <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">makeRequire</span>(<span class="hljs-params">file</span>) </span>{
-    <span class="hljs-keyword">var</span> <span class="hljs-built_in">require</span> = unboundRequire.bind(file);
-    <span class="hljs-built_in">require</span>.ensure = unboundEnsure.bind(file);</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-10">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-10">&#182;</a>
-              </div>
-              <p>TODO Consider adding <code>require.promise</code>.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">return</span> <span class="hljs-built_in">require</span>;
-  }</pre></div></div>
+    <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">require</span>(<span class="hljs-params">id</span>) </span>{
+      <span class="hljs-keyword">var</span> result = fileEvaluate(fileResolve(file, id));
+      <span class="hljs-keyword">if</span> (result === MISSING) {
+        <span class="hljs-keyword">var</span> error = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">"Cannot find module '"</span> + id + <span class="hljs-string">"'"</span>);
+        <span class="hljs-keyword">if</span> (isFunction(fallback)) {
+          result = fallback(
+            id, <span class="hljs-comment">// The missing module identifier.</span>
+            file.m.id, <span class="hljs-comment">// The path of the enclosing directory.</span>
+            error <span class="hljs-comment">// The error we would have thrown.</span>
+          );
+        } <span class="hljs-keyword">else</span> <span class="hljs-keyword">throw</span> error;
+      }
+      <span class="hljs-keyword">return</span> result;
+    }</pre></div></div>
             
         </li>
         
@@ -260,23 +235,27 @@ callbacks waiting in the queue.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-11">&#182;</a>
               </div>
-              <p>File objects represent either directories or modules that have been
-installed. When a <code>File</code> respresents a directory, its <code>.c</code> (contents)
-property is an object containing the names of the files (or
-directories) that it contains. When a <code>File</code> represents a module, its
-<code>.c</code> property is a function that can be invoked with the appropriate
-<code>(require, exports, module)</code> arguments to evaluate the module. The
-<code>.p</code> (parent) property of a File is either a directory <code>File</code> or
-<code>null</code>. Note that a child may claim another <code>File</code> as its parent even
-if the parent does not have an entry for that child in its <code>.c</code>
-object.  This is important for implementing anonymous files, and
-preventing child modules from using <code>../relative/identifier</code> syntax
-to examine unrelated modules.</p>
+              <p>A function that immediately returns true iff all the transitive
+dependencies of the module identified by id have been installed.
+This function can be used with options.onInstall to implement
+asynchronous module loading APIs like require.ensure.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">File</span>(<span class="hljs-params">contents, <span class="hljs-comment">/*optional:*/</span> parent, name</span>) </span>{
-    <span class="hljs-keyword">var</span> file = <span class="hljs-keyword">this</span>;</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-built_in">require</span>.ready = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">id</span>) </span>{
+      <span class="hljs-keyword">return</span> fileReady(fileResolve(file, id));
+    };
+
+    <span class="hljs-keyword">if</span> (requireMethods) {
+      <span class="hljs-built_in">Object</span>.keys(requireMethods).forEach(<span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">name</span>) </span>{
+        <span class="hljs-keyword">if</span> (isFunction(requireMethods[name])) {
+          <span class="hljs-built_in">require</span>[name] = requireMethods[name].bind(<span class="hljs-built_in">require</span>);
+        }
+      });
+    }
+
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">require</span>;
+  }</pre></div></div>
             
         </li>
         
@@ -287,13 +266,25 @@ to examine unrelated modules.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-12">&#182;</a>
               </div>
-              <p>Link to the parent file.</p>
+              <p>File objects represent either directories or modules that have been
+installed. When a <code>File</code> respresents a directory, its <code>.c</code> (contents)
+property is an object containing the names of the files (or
+directories) that it contains. When a <code>File</code> represents a module, its
+<code>.c</code> property is a function that can be invoked with the appropriate
+<code>(require, exports, module)</code> arguments to evaluate the module. If the
+<code>.c</code> property is a string, that string will be resolved as a module
+identifier, and the exports of the resulting module will provide the
+exports of the original file. The <code>.p</code> (parent) property of a File is
+either a directory <code>File</code> or <code>null</code>. Note that a child may claim
+another <code>File</code> as its parent even if the parent does not have an
+entry for that child in its <code>.c</code> object.  This is important for
+implementing anonymous files, and preventing child modules from using
+<code>../relative/identifier</code> syntax to examine unrelated modules.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    file.p = parent = parent || <span class="hljs-literal">null</span>;
-
-    <span class="hljs-keyword">if</span> (name) {</pre></div></div>
+            <div class="content"><div class='highlight'><pre>  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">File</span>(<span class="hljs-params">contents, <span class="hljs-comment">/*optional:*/</span> parent, name</span>) </span>{
+    <span class="hljs-keyword">var</span> file = <span class="hljs-keyword">this</span>;</pre></div></div>
             
         </li>
         
@@ -304,13 +295,11 @@ to examine unrelated modules.</p>
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-13">&#182;</a>
               </div>
-              <p>If this file was created with <code>name</code>, join it with <code>parent.id</code> to
-generate a module identifier.</p>
+              <p>Link to the parent file.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      file.id = (parent &amp;&amp; parent.id || <span class="hljs-string">""</span>) + <span class="hljs-string">"/"</span> + name;
-    }</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    file.p = parent = parent || <span class="hljs-literal">null</span>;</pre></div></div>
             
         </li>
         
@@ -320,6 +309,40 @@ generate a module identifier.</p>
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-14">&#182;</a>
+              </div>
+              <p>The module object for this File, which will eventually boast an
+.exports property when/if the file is evaluated.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    file.m = <span class="hljs-keyword">new</span> Module(</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-15">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-15">&#182;</a>
+              </div>
+              <p>If this file was created with <code>name</code>, join it with <code>parent.m.id</code>
+to generate a module identifier.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>      name ? (parent &amp;&amp; parent.m.id || <span class="hljs-string">""</span>) + <span class="hljs-string">"/"</span> + name : <span class="hljs-literal">null</span>,
+      parent &amp;&amp; parent.m
+    );</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-16">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-16">&#182;</a>
               </div>
               <p>Queue for tracking required modules with unmet dependencies,
 inherited from the <code>parent</code>.</p>
@@ -331,11 +354,11 @@ inherited from the <code>parent</code>.</p>
         </li>
         
         
-        <li id="section-15">
+        <li id="section-17">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-15">&#182;</a>
+                <a class="pilcrow" href="#section-17">&#182;</a>
               </div>
               <p>Each directory has its own bound version of the <code>require</code> function
 that can resolve relative identifiers. Non-directory Files inherit
@@ -351,11 +374,11 @@ to create a new require function every time we evaluate a module.</p>
         </li>
         
         
-        <li id="section-16">
+        <li id="section-18">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-16">&#182;</a>
+                <a class="pilcrow" href="#section-18">&#182;</a>
               </div>
               <p>Set the initial value of <code>file.c</code> (the “contents” of the File).</p>
 
@@ -366,30 +389,31 @@ to create a new require function every time we evaluate a module.</p>
         </li>
         
         
-        <li id="section-17">
+        <li id="section-19">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-17">&#182;</a>
+                <a class="pilcrow" href="#section-19">&#182;</a>
               </div>
-              <p>When the file is a directory, <code>file.ready</code> is an object mapping
-module identifiers to boolean ready statuses. This information can
-be shared by all files in the directory, because module resolution
-always has the same results for all files in a given directory.</p>
+              <p>When the file is a directory, <code>file.rc</code> is an object mapping module
+identifiers to boolean ready statuses (“rc” is short for “ready
+cache”). This information can be shared by all files in the
+directory, because module resolution always has the same results
+for all files in a given directory.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    file.ready = fileIsDirectory(file) &amp;&amp; {};
+            <div class="content"><div class='highlight'><pre>    file.rc = fileIsDirectory(file) &amp;&amp; {};
   }</pre></div></div>
             
         </li>
         
         
-        <li id="section-18">
+        <li id="section-20">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-18">&#182;</a>
+                <a class="pilcrow" href="#section-20">&#182;</a>
               </div>
               <p>A file is ready if all of its dependencies are installed and ready.</p>
 
@@ -397,21 +421,46 @@ always has the same results for all files in a given directory.</p>
             
             <div class="content"><div class='highlight'><pre>  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileReady</span>(<span class="hljs-params">file</span>) </span>{
     <span class="hljs-keyword">var</span> result = !! file;
-    <span class="hljs-keyword">var</span> <span class="hljs-built_in">module</span> = file &amp;&amp; file.c;
-    <span class="hljs-keyword">var</span> deps = isFunction(<span class="hljs-built_in">module</span>) &amp;&amp; <span class="hljs-built_in">module</span>.d;
-    <span class="hljs-keyword">if</span> (deps &amp;&amp; ! getOwn(<span class="hljs-built_in">module</span>, <span class="hljs-string">"seen"</span>)) {
-      <span class="hljs-built_in">module</span>.seen = <span class="hljs-literal">true</span>;
-      <span class="hljs-keyword">var</span> parentReadyCache = file.p.ready;
-      result = <span class="hljs-built_in">Object</span>.keys(deps).every(<span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">dep</span>) </span>{</pre></div></div>
+    <span class="hljs-keyword">var</span> contents = file &amp;&amp; file.c;
+
+    <span class="hljs-keyword">if</span> (contents &amp;&amp; ! file.inReady) {
+      file.inReady = <span class="hljs-literal">true</span>;
+
+      <span class="hljs-keyword">if</span> (isString(contents)) {</pre></div></div>
             
         </li>
         
         
-        <li id="section-19">
+        <li id="section-21">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-19">&#182;</a>
+                <a class="pilcrow" href="#section-21">&#182;</a>
+              </div>
+              <p>This file is aliased (or symbolically linked) to the file
+obtained by resolving the contents string as a module
+identifier, so regard it as ready iff the resolved file exists
+and is ready.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>        result = fileReady(fileResolve(file, contents));
+
+      } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (isFunction(contents)) {
+        <span class="hljs-keyword">var</span> deps = contents.d;
+        <span class="hljs-keyword">if</span> (deps) {
+          <span class="hljs-keyword">var</span> parentReadyCache = file.p.rc;
+
+          result = deps.every(<span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">dep</span>) </span>{</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-22">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-22">&#182;</a>
               </div>
               <p>By storing the results of these lookups in <code>parentReadyCache</code>,
 we benefit when any other file in the same directory resolves
@@ -419,21 +468,25 @@ the same identifier.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>        <span class="hljs-keyword">return</span> parentReadyCache[dep] =
-          parentReadyCache[dep] ||
-          fileReady(fileResolve(file.p, dep));
-      });
-      <span class="hljs-built_in">module</span>.seen = <span class="hljs-literal">undefined</span>;
+            <div class="content"><div class='highlight'><pre>            <span class="hljs-keyword">return</span> parentReadyCache[dep] =
+              parentReadyCache[dep] ||
+              fileReady(fileResolve(file.p, dep));
+          });
+        }
+      }
+
+      file.inReady = <span class="hljs-literal">false</span>;
     }
+
     <span class="hljs-keyword">return</span> result;
   }
 
   <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileEvaluate</span>(<span class="hljs-params">file</span>) </span>{
-    <span class="hljs-keyword">var</span> <span class="hljs-built_in">module</span> = file &amp;&amp; file.c;
-    <span class="hljs-keyword">if</span> (isFunction(<span class="hljs-built_in">module</span>)) {
+    <span class="hljs-keyword">var</span> contents = file &amp;&amp; file.c;
+    <span class="hljs-keyword">if</span> (isFunction(contents)) {
+      <span class="hljs-keyword">var</span> <span class="hljs-built_in">module</span> = file.m;
       <span class="hljs-keyword">if</span> (! hasOwn.call(<span class="hljs-built_in">module</span>, <span class="hljs-string">"exports"</span>)) {
-        <span class="hljs-built_in">module</span>.id = file.id;
-        <span class="hljs-built_in">module</span>.call(global, file.r, <span class="hljs-built_in">module</span>.exports = {}, <span class="hljs-built_in">module</span>);
+        contents(file.r, <span class="hljs-built_in">module</span>.exports = {}, <span class="hljs-built_in">module</span>);
       }
       <span class="hljs-keyword">return</span> <span class="hljs-built_in">module</span>.exports;
     }
@@ -441,13 +494,96 @@ the same identifier.</p>
   }
 
   <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileIsDirectory</span>(<span class="hljs-params">file</span>) </span>{
-    <span class="hljs-keyword">return</span> isObject(file.c);
+    <span class="hljs-keyword">return</span> file &amp;&amp; isObject(file.c);
   }
 
-  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileMergeContents</span>(<span class="hljs-params">file, contents</span>) </span>{
-    <span class="hljs-keyword">if</span> ((contents = ensureObjectOrFunction(contents))) {
+  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileMergeContents</span>(<span class="hljs-params">file, contents</span>) </span>{</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-23">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-23">&#182;</a>
+              </div>
+              <p>If contents is an array of strings and functions, return the last
+function with a <code>.d</code> property containing all the strings.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">Array</span>.isArray(contents)) {
+      <span class="hljs-keyword">var</span> deps = [];
+
+      contents.forEach(<span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">item</span>) </span>{
+        <span class="hljs-keyword">if</span> (isString(item)) {
+          deps.push(item);
+        } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (isFunction(item)) {
+          contents = item;
+        }
+      });
+
+      <span class="hljs-keyword">if</span> (isFunction(contents)) {
+        contents.d = deps;
+      } <span class="hljs-keyword">else</span> {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-24">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-24">&#182;</a>
+              </div>
+              <p>If the array did not contain a function, merge nothing.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>        contents = <span class="hljs-literal">null</span>;
+      }
+
+    } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (isFunction(contents)) {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-25">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-25">&#182;</a>
+              </div>
+              <p>If contents is already a function, make sure it has <code>.d</code>.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>      contents.d = contents.d || [];
+
+    } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (! isString(contents) &amp;&amp;
+               ! isObject(contents)) {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-26">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-26">&#182;</a>
+              </div>
+              <p>If contents is neither an array nor a function nor a string nor
+an object, just give up and merge nothing.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>      contents = <span class="hljs-literal">null</span>;
+    }
+
+    <span class="hljs-keyword">if</span> (contents) {
       <span class="hljs-keyword">var</span> fileContents = file.c = file.c || (
-        isFunction(contents) ? contents : {}
+        isObject(contents) ? {} : contents
       );
 
       <span class="hljs-keyword">if</span> (isObject(contents) &amp;&amp; fileIsDirectory(file)) {
@@ -461,93 +597,6 @@ the same identifier.</p>
         });
       }
     }
-  };
-
-  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">ensureObjectOrFunction</span>(<span class="hljs-params">contents</span>) </span>{</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-20">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-20">&#182;</a>
-              </div>
-              <p>If contents is an array of strings and functions, return the last
-function with a <code>.d</code> property containing all the strings.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">Array</span>.isArray(contents)) {
-      <span class="hljs-keyword">var</span> deps = {};
-      <span class="hljs-keyword">var</span> func;
-
-      contents.forEach(<span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">item</span>) </span>{
-        <span class="hljs-keyword">if</span> (isString(item)) {
-          deps[item] = <span class="hljs-literal">false</span>; <span class="hljs-comment">// Initially unsatisfied.</span>
-        } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (isFunction(item)) {
-          func = item;
-        }
-      });</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-21">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-21">&#182;</a>
-              </div>
-              <p>If no function was found in the array, provide a default function
-that simply requires each dependency (really common case).</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>      contents = func || <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">module, require</span>) </span>{
-        <span class="hljs-built_in">Object</span>.keys(deps).forEach(<span class="hljs-built_in">require</span>);
-      };
-
-      contents.d = deps;
-
-    } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (isFunction(contents)) {</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-22">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-22">&#182;</a>
-              </div>
-              <p>If contents is already a function, make sure it has deps.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>      contents.d = contents.d || {};
-
-    } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (! isObject(contents)) {</pre></div></div>
-            
-        </li>
-        
-        
-        <li id="section-23">
-            <div class="annotation">
-              
-              <div class="pilwrap ">
-                <a class="pilcrow" href="#section-23">&#182;</a>
-              </div>
-              <p>If contents is neither an array nor a function nor an object,
-just give up and return null.</p>
-
-            </div>
-            
-            <div class="content"><div class='highlight'><pre>      contents = <span class="hljs-literal">null</span>;
-    }
-
-    <span class="hljs-keyword">return</span> contents;
   }
 
   <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileAppendIdPart</span>(<span class="hljs-params">file, part, isLastPart</span>) </span>{</pre></div></div>
@@ -555,11 +604,11 @@ just give up and return null.</p>
         </li>
         
         
-        <li id="section-24">
+        <li id="section-27">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-24">&#182;</a>
+                <a class="pilcrow" href="#section-27">&#182;</a>
               </div>
               <p>Always append relative to a directory.</p>
 
@@ -577,34 +626,34 @@ just give up and return null.</p>
       <span class="hljs-keyword">return</span> file.p;
     }
 
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> e = <span class="hljs-number">0</span>; e &lt; extensions.length; ++e) {
-      <span class="hljs-keyword">var</span> withExtension = part + extensions[e];
-
-      <span class="hljs-keyword">var</span> child = getOwn(file.c, withExtension);
-      <span class="hljs-keyword">if</span> (child) {
-        <span class="hljs-keyword">return</span> child;
-      }
-
-      <span class="hljs-keyword">if</span> (! isLastPart) {</pre></div></div>
+    <span class="hljs-keyword">var</span> exactChild = getOwn(file.c, part);</pre></div></div>
             
         </li>
         
         
-        <li id="section-25">
+        <li id="section-28">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-25">&#182;</a>
+                <a class="pilcrow" href="#section-28">&#182;</a>
               </div>
               <p>Only consider multiple file extensions if this part is the last
-part of a module identifier, and not <code>.</code> or <code>..</code>.</p>
+part of a module identifier and not equal to <code>.</code> or <code>..</code>, and there
+was no exact match or the exact match was a directory.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>        <span class="hljs-keyword">break</span>;
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span> (isLastPart &amp;&amp; (! exactChild || fileIsDirectory(exactChild))) {
+      <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> e = <span class="hljs-number">0</span>; e &lt; extensions.length; ++e) {
+        <span class="hljs-keyword">var</span> child = getOwn(file.c, part + extensions[e]);
+        <span class="hljs-keyword">if</span> (child) {
+          <span class="hljs-keyword">return</span> child;
+        }
       }
     }
-  };
+
+    <span class="hljs-keyword">return</span> exactChild;
+  }
 
   <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileAppendId</span>(<span class="hljs-params">file, id</span>) </span>{
     <span class="hljs-keyword">var</span> parts = id.split(<span class="hljs-string">"/"</span>);</pre></div></div>
@@ -612,11 +661,11 @@ part of a module identifier, and not <code>.</code> or <code>..</code>.</p>
         </li>
         
         
-        <li id="section-26">
+        <li id="section-29">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-26">&#182;</a>
+                <a class="pilcrow" href="#section-29">&#182;</a>
               </div>
               <p>Use <code>Array.prototype.every</code> to terminate iteration early if
 <code>fileAppendIdPart</code> returns a falsy value.</p>
@@ -627,23 +676,19 @@ part of a module identifier, and not <code>.</code> or <code>..</code>.</p>
       <span class="hljs-keyword">return</span> file = fileAppendIdPart(file, part, i === parts.length - <span class="hljs-number">1</span>);
     });
     <span class="hljs-keyword">return</span> file;
-  };
-
-  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileGetRoot</span>(<span class="hljs-params">file</span>) </span>{
-    <span class="hljs-keyword">return</span> file &amp;&amp; fileGetRoot(file.p) || file;
   }
 
-  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileResolve</span>(<span class="hljs-params">file, id</span>) </span>{
+  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fileResolve</span>(<span class="hljs-params">file, id, seenDirFiles</span>) </span>{
     file =</pre></div></div>
             
         </li>
         
         
-        <li id="section-27">
+        <li id="section-30">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-27">&#182;</a>
+                <a class="pilcrow" href="#section-30">&#182;</a>
               </div>
               <p>Absolute module identifiers (i.e. those that begin with a <code>/</code>
 character) are interpreted relative to the root directory, which
@@ -652,16 +697,16 @@ file system.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      id.charAt(<span class="hljs-number">0</span>) === <span class="hljs-string">"/"</span> ? fileAppendId(fileGetRoot(file), id) :</pre></div></div>
+            <div class="content"><div class='highlight'><pre>      id.charAt(<span class="hljs-number">0</span>) === <span class="hljs-string">"/"</span> ? fileAppendId(root, id) :</pre></div></div>
             
         </li>
         
         
-        <li id="section-28">
+        <li id="section-31">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-28">&#182;</a>
+                <a class="pilcrow" href="#section-31">&#182;</a>
               </div>
               <p>Relative module identifiers are interpreted relative to the
 current file, naturally.</p>
@@ -673,11 +718,11 @@ current file, naturally.</p>
         </li>
         
         
-        <li id="section-29">
+        <li id="section-32">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-29">&#182;</a>
+                <a class="pilcrow" href="#section-32">&#182;</a>
               </div>
               <p>Top-level module identifiers are interpreted as referring to
 packages in <code>node_modules</code> directories.</p>
@@ -689,37 +734,125 @@ packages in <code>node_modules</code> directories.</p>
         </li>
         
         
-        <li id="section-30">
+        <li id="section-33">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-30">&#182;</a>
+                <a class="pilcrow" href="#section-33">&#182;</a>
               </div>
               <p>If the identifier resolves to a directory, we use the same logic as
 Node to find an <code>index.js</code> or <code>package.json</code> file to evaluate.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">while</span> (file &amp;&amp; fileIsDirectory(file)) {</pre></div></div>
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">while</span> (fileIsDirectory(file)) {
+      seenDirFiles = seenDirFiles || [];</pre></div></div>
             
         </li>
         
         
-        <li id="section-31">
+        <li id="section-34">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-31">&#182;</a>
+                <a class="pilcrow" href="#section-34">&#182;</a>
               </div>
-              <p>If <code>package.json</code> does not exist, <code>fileEvaluate</code> will return the
-<code>MISSING</code> object, which has no <code>.main</code> property.</p>
+              <p>If the “main” field of a <code>package.json</code> file resolves to a
+directory we’ve already considered, then we should not attempt to
+read the same <code>package.json</code> file again. Using an array as a set
+is acceptable here because the number of directories to consider
+is rarely greater than 1 or 2. Also, using indexOf allows us to
+store File objects instead of strings.</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">var</span> pkg = fileEvaluate(fileAppendIdPart(file, <span class="hljs-string">"package.json"</span>));
-      file = pkg &amp;&amp; isString(pkg.main) &amp;&amp;
-        fileAppendId(file, pkg.main) || <span class="hljs-comment">// Might resolve to another directory!</span>
-        fileAppendIdPart(file, <span class="hljs-string">"index.js"</span>);
+            <div class="content"><div class='highlight'><pre>      <span class="hljs-keyword">if</span> (seenDirFiles.indexOf(file) &lt; <span class="hljs-number">0</span>) {
+        seenDirFiles.push(file);</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-35">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-35">&#182;</a>
+              </div>
+              <p>If <code>package.json</code> does not exist, <code>fileEvaluate</code> will return
+the <code>MISSING</code> object, which has no <code>.main</code> property.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>        <span class="hljs-keyword">var</span> pkg = fileEvaluate(fileAppendIdPart(file, <span class="hljs-string">"package.json"</span>));
+        <span class="hljs-keyword">if</span> (pkg &amp;&amp; isString(pkg.main)) {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-36">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-36">&#182;</a>
+              </div>
+              <p>The “main” field of package.json does not have to begin with
+./ to be considered relative, so first we try simply
+appending it to the directory path before falling back to a
+full fileResolve, which might return a package from a
+node_modules directory.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>          file = fileAppendId(file, pkg.main) ||
+            fileResolve(file, pkg.main, seenDirFiles);
+
+          <span class="hljs-keyword">if</span> (file) {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-37">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-37">&#182;</a>
+              </div>
+              <p>The fileAppendId call above may have returned a directory,
+so continue the loop to make sure we resolve it to a
+non-directory file.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>            <span class="hljs-keyword">continue</span>;
+          }
+        }
+      }</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-38">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-38">&#182;</a>
+              </div>
+              <p>If we didn’t find a <code>package.json</code> file, or it didn’t have a
+resolvable <code>.main</code> property, the only possibility left to
+consider is that this directory contains an <code>index.js</code> module.
+This assignment almost always terminates the while loop, because
+there’s very little chance <code>fileIsDirectory(file)</code> will be true
+for the result of <code>fileAppendIdPart(file, &quot;index.js&quot;)</code>. However,
+in principle it is remotely possible that a file called
+<code>index.js</code> could be a directory instead of a file.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>      file = fileAppendIdPart(file, <span class="hljs-string">"index.js"</span>);
+    }
+
+    <span class="hljs-keyword">if</span> (file &amp;&amp; isString(file.c)) {
+      file = fileResolve(file, file.c, seenDirFiles);
     }
 
     <span class="hljs-keyword">return</span> file;
@@ -730,9 +863,13 @@ Node to find an <code>index.js</code> or <code>package.json</code> file to evalu
       fileAppendId(file, <span class="hljs-string">"node_modules/"</span> + id) ||
       (file.p &amp;&amp; nodeModulesLookup(file.p, id));
   }
-})(<span class="hljs-string">"object"</span> === <span class="hljs-keyword">typeof</span> global ? global :
-   <span class="hljs-string">"object"</span> === <span class="hljs-keyword">typeof</span> <span class="hljs-built_in">window</span> ? <span class="hljs-built_in">window</span> :
-   <span class="hljs-string">"object"</span> === <span class="hljs-keyword">typeof</span> self ? self : <span class="hljs-keyword">this</span>);</pre></div></div>
+
+  <span class="hljs-keyword">return</span> install;
+};
+
+<span class="hljs-keyword">if</span> (<span class="hljs-keyword">typeof</span> exports === <span class="hljs-string">"object"</span>) {
+  exports.makeInstaller = makeInstaller;
+}</pre></div></div>
             
         </li>
         
